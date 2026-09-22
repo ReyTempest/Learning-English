@@ -1,1 +1,1813 @@
-<h1>Hello World</h1>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="単語壁打ち帳">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#EFE9DB">
+<title>単語壁打ち帳</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --paper:#EFE9DB;
+  --paper-deep:#E4DCC8;
+  --card:#FAF7EF;
+  --line:#C9BFA5;
+  --ink:#26313E;
+  --ink-soft:#6B7280;
+  --stamp:#B23A2E;
+  --stamp-dark:#7E2A21;
+  --gold:#A9824A;
+  --green:#4C6B3E;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  background-image:
+    linear-gradient(var(--paper-deep) 1px, transparent 1px);
+  background-size: 100% 34px;
+  font-family:'Zen Kaku Gothic New', sans-serif;
+  color:var(--ink);
+  padding:28px 20px 60px;
+}
+.wrap{max-width:760px;margin:0 auto;}
+
+.header{
+  display:flex;align-items:baseline;justify-content:space-between;
+  border-bottom:3px double var(--ink);
+  padding-bottom:10px;margin-bottom:18px;
+}
+.header h1{
+  font-family:'Shippori Mincho',serif;font-weight:700;font-size:26px;margin:0;
+  letter-spacing:.04em;
+}
+.header .sub{font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;}
+.today-banner{
+  display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;padding:9px 14px;
+  border:1px solid var(--line);border-radius:8px;background:var(--card);
+  font-size:12px;color:var(--ink);
+}
+.today-banner .stat{display:flex;align-items:baseline;gap:5px;}
+.today-banner .stat b{font-family:'JetBrains Mono',monospace;font-size:14px;}
+.today-banner .stat.goal-met b{color:#3f7a35;}
+.today-banner .stat.has-due b{color:var(--stamp);}
+
+.tabs{display:flex;gap:8px;margin-bottom:20px;}
+.tab-btn{
+  flex:1;padding:10px 12px;background:var(--card);
+  border:1px solid var(--line);border-bottom:none;
+  font-family:'Shippori Mincho',serif;font-size:15px;font-weight:700;
+  color:var(--ink-soft);cursor:pointer;
+  border-radius:6px 6px 0 0;
+}
+.tab-btn.active{color:var(--ink);background:#fff;border-color:var(--ink-soft);}
+
+.panel{
+  background:var(--card);border:1px solid var(--line);border-radius:0 6px 6px 6px;
+  padding:20px;margin-bottom:16px;
+}
+.panel.hidden{display:none;}
+
+.card-title{
+  font-family:'Shippori Mincho',serif;font-weight:700;font-size:15px;
+  margin:0 0 12px;padding-bottom:6px;border-bottom:1px dashed var(--line);
+  display:flex;align-items:center;gap:6px;
+}
+.card-title .tag{
+  font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--gold);
+  border:1px solid var(--gold);padding:1px 5px;border-radius:3px;
+}
+
+.form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.form-row.top input{flex:1;min-width:110px;}
+input, textarea{
+  width:100%;font-family:'JetBrains Mono',monospace;font-size:14px;
+  border:1px solid var(--line);border-radius:4px;padding:9px 10px;
+  background:#fff;color:var(--ink);
+}
+input:focus, textarea:focus{outline:none;border-color:var(--gold);}
+label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:3px;font-family:'Zen Kaku Gothic New',sans-serif;}
+.field{flex:1;min-width:120px;}
+.add-btn{
+  background:var(--ink);color:#fff;border:none;border-radius:4px;
+  padding:10px 18px;font-size:13px;cursor:pointer;font-family:'Zen Kaku Gothic New',sans-serif;font-weight:500;
+  white-space:nowrap;
+}
+.add-btn:hover{background:#000;}
+.add-btn:disabled{opacity:.6;cursor:default;}
+.btn-spinner{
+  display:inline-block;width:11px;height:11px;
+  border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+  animation:btn-spin .6s linear infinite;vertical-align:-1px;margin-right:6px;
+}
+@keyframes btn-spin{to{transform:rotate(360deg);}}
+.err{color:var(--stamp);font-size:12px;margin:-4px 0 8px;display:none;}
+
+.chips{display:flex;gap:6px;margin:16px 0 10px;flex-wrap:wrap;}
+.chip{
+  padding:5px 12px;border:1px solid var(--line);border-radius:14px;
+  font-size:12px;cursor:pointer;background:#fff;color:var(--ink-soft);
+}
+.chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+.ledger-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.ledger-toolbar input[type="text"], .ledger-toolbar select{
+  font-family:'Zen Kaku Gothic New',sans-serif;font-size:12px;
+  padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);
+}
+.ledger-toolbar input[type="text"]{flex:1;min-width:120px;}
+.csv-row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0;}
+.csv-row button{
+  font-family:'Zen Kaku Gothic New',sans-serif;font-size:11px;padding:6px 10px;
+  border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink-soft);cursor:pointer;
+}
+.csv-row button:hover{border-color:var(--gold);color:var(--gold);}
+
+.bulk-bar{
+  display:none;align-items:center;justify-content:space-between;gap:8px;
+  background:var(--card);border:1px solid var(--line);border-radius:6px;
+  padding:8px 10px;margin:8px 0;font-size:12px;color:var(--ink-soft);
+}
+.bulk-bar.show{display:flex;}
+.bulk-bar button{
+  font-family:'Zen Kaku Gothic New',sans-serif;font-size:12px;padding:6px 12px;
+  border-radius:6px;cursor:pointer;border:1px solid var(--stamp);background:#fff;color:var(--stamp);
+}
+
+.ledger{border-top:1px solid var(--line);}
+.row{
+  display:flex;align-items:flex-start;gap:8px;
+  padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px;
+}
+.row-check{margin-top:4px;flex-shrink:0;width:15px;height:15px;accent-color:var(--stamp);}
+.row-main{flex:1;min-width:0;}
+.row-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.row .word{font-family:'JetBrains Mono',monospace;font-weight:700;}
+.row .word .ex{display:block;font-family:'Zen Kaku Gothic New',sans-serif;font-weight:400;font-size:11px;color:var(--ink-soft);margin-top:2px;}
+.row .meaning{color:var(--ink-soft);margin-top:2px;}
+.row-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-soft);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.due-chip{padding:1px 6px;border-radius:8px;font-size:10px;}
+.due-chip.overdue{background:#f6dedb;color:var(--stamp);}
+.due-chip.today{background:#f7e7c8;color:#8a6a1f;}
+.due-chip.future{background:var(--card);color:var(--ink-soft);border:1px solid var(--line);}
+.badge{font-size:9px;font-family:'JetBrains Mono',monospace;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:1px;}
+.badge.fame{background:#F1E6CE;color:var(--gold);border:1px solid var(--gold);}
+.row-actions{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.icon-btn{
+  width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:#fff;
+  font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);
+}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold);}
+.stampmark{
+  width:30px;height:30px;border-radius:50%;border:2px solid var(--stamp);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--stamp);font-size:14px;font-weight:700;transform:rotate(-8deg);flex-shrink:0;
+}
+.stampmark.empty{border-color:var(--line);color:var(--line);}
+.empty-msg{padding:20px 4px;color:var(--ink-soft);font-size:13px;text-align:center;}
+
+.row-edit input, .row-edit textarea{
+  width:100%;font-family:'Zen Kaku Gothic New',sans-serif;font-size:13px;
+  padding:5px 7px;border:1px solid var(--line);border-radius:5px;margin-bottom:5px;background:#fff;color:var(--ink);
+}
+.row-edit-actions{display:flex;gap:6px;margin-top:4px;}
+.row-edit-actions button{
+  font-family:'Zen Kaku Gothic New',sans-serif;font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;
+}
+.row-edit-actions .save-edit{background:var(--ink);color:#fff;border:1px solid var(--ink);}
+.row-edit-actions .cancel-edit{background:#fff;color:var(--ink-soft);border:1px solid var(--line);}
+
+.reset-row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;}
+.reset-btn{
+  background:none;border:1px solid var(--stamp);color:var(--stamp);
+  border-radius:4px;padding:7px 14px;font-size:12px;cursor:pointer;
+}
+.count{font-size:12px;color:var(--ink-soft);}
+
+.spar-empty{text-align:center;padding:30px 10px;color:var(--ink-soft);}
+.spar-start{
+  background:var(--ink);color:#fff;border:none;border-radius:4px;
+  padding:11px 20px;font-size:14px;cursor:pointer;margin-top:10px;font-family:'Zen Kaku Gothic New',sans-serif;
+  width:100%;
+}
+.pool{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px;}
+.pool span{font-family:'JetBrains Mono',monospace;font-size:12px;background:#fff;border:1px solid var(--line);padding:3px 9px;border-radius:12px;}
+.pool span.done{text-decoration:line-through;color:var(--ink-soft);border-color:var(--ink-soft);}
+
+.q-box{
+  background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px;margin:14px 0;
+  position:relative;
+}
+.q-word{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;margin-bottom:4px;}
+.q-meaning{font-size:12px;color:var(--ink-soft);margin-bottom:10px;}
+.q-text{font-size:15px;line-height:1.6;margin-bottom:12px;min-height:20px;}
+.ans-row{display:flex;gap:8px;}
+.ans-row input{flex:1;}
+.submit-btn{
+  background:var(--ink);color:#fff;border:none;border-radius:4px;padding:9px 16px;
+  font-size:13px;cursor:pointer;
+}
+.feedback{
+  margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);
+  font-size:13px;line-height:1.6;display:none;
+}
+.feedback.show{display:block;}
+.feedback .verdict{font-weight:700;margin-bottom:4px;}
+.feedback .verdict.pass{color:var(--green);}
+.feedback .verdict.retry{color:var(--stamp);}
+.next-btn{
+  margin-top:10px;background:none;border:1px solid var(--ink);border-radius:4px;
+  padding:7px 14px;font-size:12px;cursor:pointer;display:none;
+}
+.next-btn.show{display:inline-block;}
+
+.stamp-anim{
+  position:absolute;top:14px;right:14px;width:52px;height:52px;border-radius:50%;
+  border:3px solid var(--stamp);color:var(--stamp);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;
+  font-family:'JetBrains Mono',monospace;transform:scale(2.2) rotate(-14deg);opacity:0;
+  transition:transform .35s cubic-bezier(.2,1.6,.4,1), opacity .2s;
+  pointer-events:none;text-align:center;
+}
+.stamp-anim.play{transform:scale(1) rotate(-14deg);opacity:1;}
+
+.loading{font-size:12px;color:var(--ink-soft);font-style:italic;}
+
+.study-progress{font-size:12px;color:var(--ink-soft);text-align:center;}
+.due-note{font-size:12px;color:var(--ink-soft);text-align:center;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin-bottom:10px;}
+.study-nav-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px;}
+.dir-badge{
+  text-align:center;font-size:11px;color:var(--gold);border:1px solid var(--gold);
+  display:inline-block;padding:2px 10px;border-radius:10px;margin:0 auto 8px;
+  font-family:'JetBrains Mono',monospace;
+}
+.dir-badge{display:table;margin-left:auto;margin-right:auto;}
+.study-today-count{text-align:center;font-size:11px;color:var(--ink-soft);margin-top:10px;}
+.nav-btn{
+  width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
+  background:#fff;color:var(--ink);font-size:14px;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.nav-btn:hover{border-color:var(--gold);color:var(--gold);}
+.nav-btn:disabled{opacity:.3;cursor:default;}
+.flip-card{perspective:1200px;width:100%;max-width:340px;height:190px;margin:0 auto;cursor:pointer;touch-action:pan-y;user-select:none;}
+.flip-card.swiping{transition:none;}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s cubic-bezier(.4,.2,.2,1);transform-style:preserve-3d;}
+.flip-inner.flipped{transform:rotateY(180deg);}
+.flip-face{
+  position:absolute;inset:0;backface-visibility:hidden;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  padding:18px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.flip-face .sub{display:block;font-family:'Zen Kaku Gothic New',sans-serif;font-weight:400;font-size:12px;color:var(--ink-soft);margin-top:8px;}
+.flip-back{transform:rotateY(180deg);background:var(--card);}
+.flip-hint{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:8px;}
+.judge-row{display:flex;gap:10px;margin-top:16px;}
+.judge-btn{
+  flex:1;padding:17px 10px;font-size:16px;font-weight:700;border-radius:9px;
+  cursor:pointer;font-family:'Zen Kaku Gothic New',sans-serif;
+  transition:transform .12s ease;
+}
+.judge-btn:active{transform:scale(.95);}
+.judge-btn.unknown{background:none;border:2px solid var(--stamp);color:var(--stamp);}
+.judge-btn.unknown:hover{background:rgba(178,58,46,.08);}
+.judge-btn.known{background:var(--ink);color:#fff;border:2px solid var(--ink);}
+.judge-btn.known:hover{background:#000;}
+.speak-btn{
+  display:flex;align-items:center;justify-content:center;margin:0;
+  width:36px;height:36px;border-radius:50%;border:1px solid var(--line);
+  background:#fff;color:var(--ink);cursor:pointer;font-size:16px;
+}
+.speak-btn:hover{border-color:var(--gold);color:var(--gold);}
+.speak-btn:disabled{opacity:.5;cursor:default;}
+.study-controls{display:flex;gap:6px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.study-controls button{font-family:'Zen Kaku Gothic New',sans-serif;font-size:12px;padding:8px 12px;border-radius:5px;cursor:pointer;}
+.study-controls .chip{border:1px solid var(--line);background:#fff;color:var(--ink-soft);}
+.session-done{text-align:center;padding:26px 10px;}
+.session-done .stampmark{margin:0 auto 10px;width:44px;height:44px;font-size:18px;}
+
+.stats-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;}
+.stat-box{border:1px solid var(--line);border-radius:8px;padding:10px 4px;text-align:center;background:var(--card);}
+.stat-num{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--ink);}
+.stat-label{font-size:10px;color:var(--ink-soft);margin-top:2px;}
+.cal-title{font-size:13px;font-weight:700;text-align:center;margin-bottom:8px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-head{font-size:10px;color:var(--ink-soft);text-align:center;margin-bottom:4px;}
+.cal-cell{
+  aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  border-radius:4px;font-size:10px;color:var(--ink-soft);
+}
+.cal-cell.empty{visibility:hidden;}
+.cal-cell.today{outline:2px solid var(--gold);outline-offset:-2px;}
+.cal-cell.lv0{background:var(--card);}
+.cal-cell.lv1{background:#d8e6d3;color:var(--ink);}
+.cal-cell.lv2{background:#a9cba0;color:var(--ink);}
+.cal-cell.lv3{background:#6fa563;color:#fff;}
+.cal-cell.lv4{background:#3f7a35;color:#fff;}
+.cal-cell.mini{width:12px;height:12px;aspect-ratio:auto;display:inline-flex;border-radius:2px;margin:0 2px;}
+.cal-legend{font-size:10px;color:var(--ink-soft);text-align:center;margin-top:8px;}
+.stats-note{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:14px;}
+
+/* ---- 全ボタン共通の押し込み感 ---- */
+button, .chip, .tab-btn, .stampmark{
+  transition: transform .1s ease;
+}
+button:active, .chip:active, .tab-btn:active, .stampmark:active{
+  transform: scale(.94);
+}
+button:disabled:active{
+  transform: none;
+}
+
+/* ---- スマートフォン用レスポンシブスタイル ---- */
+@media (max-width: 600px) {
+  body {
+    padding: 16px 12px 40px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .field {
+    min-width: 100%;
+  }
+
+  .judge-btn {
+    padding: 19px 10px;
+    font-size: 17px;
+  }
+
+  .flip-card {
+    max-width: 100%;
+    height: 210px;
+  }
+
+  .add-btn {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 
+      "word stamp"
+      "meaning stamp"
+      "date stamp";
+    gap: 4px 10px;
+    padding: 10px 4px;
+  }
+
+  .row .word {
+    grid-area: word;
+    font-size: 15px;
+  }
+
+  .row .meaning {
+    grid-area: meaning;
+    font-size: 13px;
+  }
+
+  .row .date {
+    grid-area: date;
+    font-size: 10px;
+  }
+
+  .row .stampmark {
+    grid-area: stamp;
+    align-self: center;
+  }
+
+  #panel-sync .form-row {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  #panel-sync .add-btn {
+    width: 100%;
+  }
+
+  .tab-btn {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>単語壁打ち帳</h1>
+    <div class="sub" id="today"></div>
+    <div class="today-banner" id="today-banner"></div>
+  </div>
+
+  <div class="panel" id="panel-sync" style="padding:14px 20px;">
+    <div class="card-title" style="margin:0;border:none;padding:0;">スプレッドシート同期 <span class="tag">SYNC</span></div>
+    <div class="form-row" style="margin-top:10px;align-items:flex-end;">
+      <div class="field">
+        <label>Google Apps Script ウェブアプリURL</label>
+        <input id="in-gasurl" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <button class="add-btn" id="save-gas-btn">保存</button>
+      <button class="add-btn" id="pull-btn" style="background:var(--gold);">シートから取得</button>
+      <button class="add-btn" id="force-card-btn" style="background:#fff;color:var(--ink);border:1px solid var(--ink);">今すぐカード生成</button>
+    </div>
+    <div id="sync-status" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
+    <div id="pdf-link" style="font-size:12px;margin-top:4px;"></div>
+    <div class="form-row" style="margin-top:10px;align-items:center;">
+      <button class="add-btn" id="enable-notif-btn" style="background:#fff;color:var(--ink);border:1px solid var(--ink);">🔔 通知を有効にする</button>
+      <span id="notif-status" style="font-size:11px;color:var(--ink-soft);"></span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="ledger">台帳</button>
+    <button class="tab-btn" data-tab="spar">壁打ち</button>
+    <button class="tab-btn" data-tab="study">カード学習</button>
+    <button class="tab-btn" data-tab="stats">統計</button>
+  </div>
+
+  <div class="panel" id="panel-ledger">
+    <div class="card-title">単語を追加 <span class="tag">INPUT</span></div>
+    <div class="form-row top">
+      <div class="field"><label>単語 / 表現</label><input id="in-word" placeholder="reluctant" spellcheck="true" lang="en"></div>
+      <div class="field"><label>意味</label><textarea id="in-meaning" placeholder="気乗りしない" rows="1" style="resize:vertical;min-height:38px;"></textarea></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>自作例文（任意）</label><input id="in-example" placeholder="I was reluctant to go out." spellcheck="true" lang="en"></div>
+      <button class="add-btn" id="add-btn">台帳に加える</button>
+    </div>
+    <div class="err" id="add-err">単語と意味を入力してください</div>
+
+    <div class="card-title" style="margin-top:6px;">単語台帳 <span class="tag" id="ledger-count">0件</span></div>
+    <div class="chips">
+      <div class="chip active" data-filter="all">すべて</div>
+      <div class="chip" data-filter="unchecked">未定着</div>
+      <div class="chip" data-filter="checked">定着</div>
+      <div class="chip" data-filter="fame">殿堂入り</div>
+    </div>
+    <div class="ledger-toolbar">
+      <input type="text" id="ledger-search" placeholder="単語・意味で検索">
+      <select id="ledger-sort">
+        <option value="date-desc">登録日が新しい順</option>
+        <option value="date-asc">登録日が古い順</option>
+        <option value="due-asc">復習日が近い順</option>
+        <option value="alpha">単語順（A-Z）</option>
+      </select>
+    </div>
+    <div class="csv-row">
+      <button id="csv-export-btn">⬇ CSVエクスポート</button>
+      <button id="csv-import-btn">⬆ CSVインポート</button>
+      <input type="file" id="csv-import-input" accept=".csv" style="display:none;">
+    </div>
+    <div class="bulk-bar" id="bulk-bar">
+      <span id="bulk-count">0件選択中</span>
+      <div style="display:flex;gap:6px;">
+        <button id="bulk-clear-btn" style="border-color:var(--line);color:var(--ink-soft);">選択解除</button>
+        <button id="bulk-delete-btn">選択した単語を削除</button>
+      </div>
+    </div>
+    <div class="ledger" id="ledger-list"></div>
+    <div class="reset-row">
+      <span class="count" id="reset-hint"></span>
+      <button class="reset-btn" id="reset-btn">1周リセット</button>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="panel-spar">
+    <div class="card-title">壁打ちセッション <span class="tag">SPAR</span></div>
+    <div id="spar-body"></div>
+  </div>
+
+  <div class="panel hidden" id="panel-study">
+    <div class="card-title">カード学習 <span class="tag">STUDY</span></div>
+    <div class="chips" id="study-dir-chips">
+      <div class="chip" data-dirmode="both">日英シャッフル</div>
+      <div class="chip" data-dirmode="je">日→英のみ</div>
+      <div class="chip" data-dirmode="ej">英→日のみ</div>
+    </div>
+    <div id="study-body"></div>
+  </div>
+
+  <div class="panel hidden" id="panel-stats">
+    <div class="card-title">学習の記録 <span class="tag">STATS</span></div>
+    <div id="stats-body"></div>
+  </div>
+
+</div>
+
+<script>
+// window.storage は本来Claudeのアーティファクト専用の保存APIだが、
+// GitHub Pagesなど外部ホスティングで開いた場合はこのAPIが存在しないため、
+// その場合だけ localStorage を使った簡易的な代替実装に差し替える。
+if(!window.storage){
+  window.storage = {
+    async get(key, shared){
+      const raw = localStorage.getItem(key);
+      if(raw === null) throw new Error('key not found: ' + key);
+      return { key, value: raw, shared: !!shared };
+    },
+    async set(key, value, shared){
+      localStorage.setItem(key, value);
+      return { key, value, shared: !!shared };
+    },
+    async delete(key, shared){
+      const existed = localStorage.getItem(key) !== null;
+      localStorage.removeItem(key);
+      return { key, deleted: existed, shared: !!shared };
+    },
+    async list(prefix, shared){
+      const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+      return { keys, prefix, shared: !!shared };
+    }
+  };
+}
+
+const STORE_KEY = 'vocab-ledger-words';
+let words = [];
+let filter = 'all';
+let session = null;
+let searchQuery = '';
+let sortMode = 'date-desc';
+let selectedIds = new Set();
+let editingId = null;
+
+document.getElementById('today').textContent = new Date().toISOString().slice(0,10);
+
+function uid(){ return 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+async function load(){
+  try{
+    const r = await window.storage.get(STORE_KEY, false);
+    words = r && r.value ? JSON.parse(r.value) : [];
+  }catch(e){ words = []; }
+  words.forEach(migrateWord);
+  renderLedger();
+}
+async function save(pushToSheet){
+  if(pushToSheet === undefined) pushToSheet = true;
+  try{ await window.storage.set(STORE_KEY, JSON.stringify(words), false); }
+  catch(e){ console.error('save failed', e); }
+  if(pushToSheet) await syncPush();
+}
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+const SRS_STEPS = [1, 3, 7, 14, 30];
+function addDays(dateStr, n){
+  const d = new Date((dateStr || todayStr()) + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+function migrateWord(w){
+  if(w.streakJE === undefined){
+    w.streakJE = w.streak || 0;
+    w.intervalJE = w.interval || 0;
+    w.dueJE = w.due || todayStr();
+  }
+  if(w.streakEJ === undefined){
+    w.streakEJ = w.streak || 0;
+    w.intervalEJ = w.interval || 0;
+    w.dueEJ = w.due || todayStr();
+  }
+  updateMasteryFlags_(w);
+  return w;
+}
+function applySrsKnown(w, showWordFirst){
+  const sk = showWordFirst ? 'streakEJ' : 'streakJE';
+  const ik = showWordFirst ? 'intervalEJ' : 'intervalJE';
+  const dk = showWordFirst ? 'dueEJ' : 'dueJE';
+  w[sk] = (w[sk]||0) + 1;
+  const step = SRS_STEPS[Math.min(w[sk]-1, SRS_STEPS.length-1)];
+  w[ik] = step;
+  w[dk] = addDays(todayStr(), step);
+  updateMasteryFlags_(w);
+}
+function applySrsUnknown(w, showWordFirst){
+  const sk = showWordFirst ? 'streakEJ' : 'streakJE';
+  const ik = showWordFirst ? 'intervalEJ' : 'intervalJE';
+  const dk = showWordFirst ? 'dueEJ' : 'dueJE';
+  w[sk] = 0;
+  w[ik] = 0;
+  w[dk] = todayStr();
+  updateMasteryFlags_(w);
+}
+function updateMasteryFlags_(w){
+  w.checked = (w.streakJE||0) >= 1 && (w.streakEJ||0) >= 1;
+  w.fame = (w.streakJE||0) >= 3 && (w.streakEJ||0) >= 3;
+}
+function isDueForDirection(w, showWordFirst){
+  const dk = showWordFirst ? 'dueEJ' : 'dueJE';
+  return !w[dk] || w[dk] <= todayStr();
+}
+function isDueToday(w){
+  return isDueForDirection(w, false) || isDueForDirection(w, true);
+}
+
+function applySparProgress(w){
+  w.sparStreak = (w.sparStreak||0) + 1;
+  const step = SRS_STEPS[Math.min(w.sparStreak-1, SRS_STEPS.length-1)];
+  w.sparInterval = step;
+  w.sparDue = addDays(todayStr(), step);
+  w.lastSparAt = todayStr();
+}
+function isSparDueToday(w){
+  return !w.sparDue || w.sparDue <= todayStr();
+}
+
+const STUDY_LOG_KEY = 'vocab-study-log';
+let studyLog = {};
+async function loadStudyLog(){
+  try{
+    const r = await window.storage.get(STUDY_LOG_KEY, false);
+    studyLog = r && r.value ? JSON.parse(r.value) : {};
+  }catch(e){ studyLog = {}; }
+}
+async function bumpStudyLog(direction){
+  const d = todayStr();
+  if(!studyLog[d]) studyLog[d] = { je: 0, ej: 0 };
+  studyLog[d][direction] = (studyLog[d][direction]||0) + 1;
+  try{ await window.storage.set(STUDY_LOG_KEY, JSON.stringify(studyLog), false); }catch(e){}
+}
+function studyLogTotal(entry){
+  if(!entry) return 0;
+  return (entry.je||0) + (entry.ej||0);
+}
+
+let syncDirty = false;
+async function flushSync(){
+  if(!syncDirty) return;
+  syncDirty = false;
+  await syncPush();
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden') flushSync();
+});
+
+function dueChipInfo(w){
+  const je = w.dueJE || todayStr();
+  const ej = w.dueEJ || todayStr();
+  const nearer = je <= ej ? {due: je, dir: '日→英'} : {due: ej, dir: '英→日'};
+  if(nearer.due < todayStr()) return {cls:'overdue', label:`期限切れ ${nearer.due} (${nearer.dir})`};
+  if(nearer.due === todayStr()) return {cls:'today', label:`復習: 今日 (${nearer.dir})`};
+  return {cls:'future', label:`復習: ${nearer.due} (${nearer.dir})`};
+}
+
+const NEW_WORD_GOAL = 20;
+function renderTodayBanner(){
+  const banner = document.getElementById('today-banner');
+  if(!banner) return;
+  const todayKey = todayStr();
+  const newToday = words.filter(w => w.date === todayKey).length;
+  const dueCount = words.filter(isDueToday).length;
+  const goalMet = newToday >= NEW_WORD_GOAL;
+  banner.innerHTML = `
+    <div class="stat ${goalMet?'goal-met':''}">今日の新規 <b>${newToday} / ${NEW_WORD_GOAL}</b>語</div>
+    <div class="stat ${dueCount>0?'has-due':''}">復習 <b>${dueCount}</b>語</div>
+  `;
+}
+
+function renderLedger(){
+  const list = document.getElementById('ledger-list');
+  const q = searchQuery.trim().toLowerCase();
+  let filtered = words.filter(w=>{
+    if(filter==='unchecked' && w.checked) return false;
+    if(filter==='checked' && !(w.checked && !w.fame)) return false;
+    if(filter==='fame' && !w.fame) return false;
+    if(q && !(w.word.toLowerCase().includes(q) || w.meaning.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  filtered = filtered.slice().sort((a,b)=>{
+    if(sortMode==='date-asc') return a.date.localeCompare(b.date);
+    if(sortMode==='due-asc'){
+      const an = (a.dueJE||'9999') <= (a.dueEJ||'9999') ? a.dueJE : a.dueEJ;
+      const bn = (b.dueJE||'9999') <= (b.dueEJ||'9999') ? b.dueJE : b.dueEJ;
+      return (an||'9999-99-99').localeCompare(bn||'9999-99-99');
+    }
+    if(sortMode==='alpha') return a.word.toLowerCase().localeCompare(b.word.toLowerCase());
+    return b.date.localeCompare(a.date);
+  });
+
+  document.getElementById('ledger-count').textContent = words.length + '件';
+  const uncheckedTotal = words.filter(w=>!w.checked).length;
+  document.getElementById('reset-hint').textContent =
+    words.length ? `未定着 ${uncheckedTotal} / 全 ${words.length}` : '';
+  renderTodayBanner();
+
+  const visibleIds = new Set(filtered.map(w=>w.id));
+  for(const id of Array.from(selectedIds)){ if(!visibleIds.has(id)) selectedIds.delete(id); }
+  updateBulkBar();
+
+  if(!filtered.length){
+    list.innerHTML = '<div class="empty-msg">この条件の単語はまだありません</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(w=>{
+    if(w.id === editingId){
+      return `
+        <div class="row row-edit" data-id="${w.id}">
+          <div class="row-main" style="flex:1;">
+            <input type="text" class="edit-word" value="${escapeHtml(w.word)}" placeholder="単語 / 表現" spellcheck="true" lang="en">
+            <textarea class="edit-meaning" placeholder="意味" rows="1" style="resize:vertical;min-height:34px;">${escapeHtml(w.meaning)}</textarea>
+            <input type="text" class="edit-example" value="${escapeHtml(w.example||'')}" placeholder="自作例文（任意）" spellcheck="true" lang="en">
+            <div class="err edit-err" style="display:none;"></div>
+            <div class="row-edit-actions">
+              <button class="save-edit">保存</button>
+              <button class="cancel-edit">キャンセル</button>
+            </div>
+          </div>
+        </div>`;
+    }
+    const due = dueChipInfo(w);
+    return `
+    <div class="row" data-id="${w.id}">
+      <input type="checkbox" class="row-check" data-id="${w.id}" ${selectedIds.has(w.id)?'checked':''}>
+      <div class="row-main">
+        <div class="row-top">
+          <span class="word">${escapeHtml(w.word)}${w.fame?'<span class="badge fame">殿堂</span>':''}</span>
+        </div>
+        <div class="meaning" style="white-space:pre-wrap;">${escapeHtml(w.meaning)}</div>
+        ${w.example?`<span class="ex">${escapeHtml(w.example)}</span>`:''}
+        <div class="row-meta">
+          <span>登録: ${w.date}</span>
+          <span class="due-chip ${due.cls}">${due.label}</span>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="icon-btn edit-row-btn" data-id="${w.id}" title="編集">✎</button>
+        <button class="icon-btn del-row-btn" data-id="${w.id}" title="削除">🗑</button>
+        <div class="stampmark ${w.checked?'':'empty'}" data-id="${w.id}" style="cursor:pointer;" title="クリックで手動チェック">${w.checked?'済':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.stampmark').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const w = words.find(x=>x.id===el.dataset.id);
+      if(!w) return;
+      const turningOn = !w.checked;
+      if(turningOn){
+        w.streakJE = Math.max(w.streakJE||0, 1);
+        w.streakEJ = Math.max(w.streakEJ||0, 1);
+      }else{
+        w.streakJE = 0; w.streakEJ = 0;
+        w.intervalJE = 0; w.intervalEJ = 0;
+        w.dueJE = todayStr(); w.dueEJ = todayStr();
+      }
+      updateMasteryFlags_(w);
+      await save();
+      renderLedger();
+    });
+  });
+  list.querySelectorAll('.row-check').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      if(el.checked) selectedIds.add(el.dataset.id);
+      else selectedIds.delete(el.dataset.id);
+      updateBulkBar();
+    });
+  });
+  list.querySelectorAll('.edit-row-btn').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      editingId = el.dataset.id;
+      renderLedger();
+    });
+  });
+  list.querySelectorAll('.del-row-btn').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const w = words.find(x=>x.id===el.dataset.id);
+      if(!w) return;
+      if(!confirm(`「${w.word}」を削除しますか？`)) return;
+      words = words.filter(x=>x.id!==el.dataset.id);
+      selectedIds.delete(el.dataset.id);
+      await save();
+      renderLedger();
+    });
+  });
+  list.querySelectorAll('.cancel-edit').forEach(el=>{
+    el.addEventListener('click', ()=>{ editingId = null; renderLedger(); });
+  });
+  list.querySelectorAll('.save-edit').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const row = el.closest('.row-edit');
+      const id = row.dataset.id;
+      const w = words.find(x=>x.id===id);
+      if(!w) return;
+      const newWord = row.querySelector('.edit-word').value.trim();
+      const newMeaning = row.querySelector('.edit-meaning').value.trim();
+      const newExample = row.querySelector('.edit-example').value.trim();
+      const errEl = row.querySelector('.edit-err');
+      if(!newWord || !newMeaning){ errEl.textContent='単語と意味を入力してください'; errEl.style.display='block'; return; }
+      const dup = words.find(x=>x.id!==id && x.word.trim().toLowerCase()===newWord.toLowerCase());
+      if(dup){ errEl.textContent='この単語は他の項目としてすでに登録されています'; errEl.style.display='block'; return; }
+      w.word = newWord; w.meaning = newMeaning; w.example = newExample;
+      editingId = null;
+      await save();
+      renderLedger();
+    });
+  });
+}
+
+function updateBulkBar(){
+  const bar = document.getElementById('bulk-bar');
+  const count = document.getElementById('bulk-count');
+  if(selectedIds.size > 0){
+    bar.classList.add('show');
+    count.textContent = `${selectedIds.size}件選択中`;
+  }else{
+    bar.classList.remove('show');
+  }
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function setBtnLoading(btn, loading, loadingText){
+  if(loading){
+    if(btn.dataset.label === undefined) btn.dataset.label = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span>' + (loadingText || '処理中…');
+  }else{
+    btn.disabled = false;
+    if(btn.dataset.label !== undefined) btn.innerHTML = btn.dataset.label;
+  }
+}
+
+function isDuplicate(word){
+  const norm = word.trim().toLowerCase();
+  return words.some(w=>w.word.trim().toLowerCase() === norm);
+}
+
+async function addWord(word, meaning, example){
+  words.push(migrateWord({id:uid(), date:todayStr(), word, meaning, example}));
+  await save();
+  renderLedger();
+}
+
+document.getElementById('add-btn').addEventListener('click', async ()=>{
+  const word = document.getElementById('in-word').value.trim();
+  const meaning = document.getElementById('in-meaning').value.trim();
+  const example = document.getElementById('in-example').value.trim();
+  const err = document.getElementById('add-err');
+  if(!word || !meaning){ err.textContent='単語と意味を入力してください'; err.style.display='block'; return; }
+  if(isDuplicate(word)){ err.textContent='この単語はすでに登録されています'; err.style.display='block'; return; }
+  err.style.display='none';
+  const btn = document.getElementById('add-btn');
+  setBtnLoading(btn, true, '追加中…');
+  try{
+    await addWord(word, meaning, example);
+    document.getElementById('in-word').value='';
+    document.getElementById('in-meaning').value='';
+    document.getElementById('in-example').value='';
+  }finally{
+    setBtnLoading(btn, false);
+  }
+});
+
+['in-word', 'in-meaning', 'in-example'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      document.getElementById('add-btn').click();
+    }
+  });
+});
+
+document.querySelectorAll('#panel-ledger .chip[data-filter]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#panel-ledger .chip[data-filter]').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    filter = chip.dataset.filter;
+    renderLedger();
+  });
+});
+
+function syncStudyDirChipsUI(){
+  document.querySelectorAll('#study-dir-chips .chip[data-dirmode]').forEach(c=>{
+    c.classList.toggle('active', c.dataset.dirmode === studyDirMode);
+  });
+}
+document.querySelectorAll('#study-dir-chips .chip[data-dirmode]').forEach(chip=>{
+  chip.addEventListener('click', async ()=>{
+    studyDirMode = chip.dataset.dirmode;
+    syncStudyDirChipsUI();
+    await saveSettings();
+    renderStudyEntry();
+  });
+});
+
+document.getElementById('ledger-search').addEventListener('input', (e)=>{
+  searchQuery = e.target.value;
+  renderLedger();
+});
+document.getElementById('ledger-sort').addEventListener('change', (e)=>{
+  sortMode = e.target.value;
+  renderLedger();
+});
+document.getElementById('bulk-clear-btn').addEventListener('click', ()=>{
+  selectedIds.clear();
+  renderLedger();
+});
+document.getElementById('bulk-delete-btn').addEventListener('click', async ()=>{
+  if(!selectedIds.size) return;
+  if(!confirm(`選択した${selectedIds.size}件を削除しますか？この操作は取り消せません。`)) return;
+  words = words.filter(w=>!selectedIds.has(w.id));
+  selectedIds.clear();
+  await save();
+  renderLedger();
+});
+
+const CSV_FIELDS = ['date','word','meaning','example','checked','fame','streakJE','intervalJE','dueJE','streakEJ','intervalEJ','dueEJ'];
+function csvEscape(v){
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function wordsToCsv(list){
+  const rows = [CSV_FIELDS.join(',')].concat(
+    list.map(w => CSV_FIELDS.map(k => csvEscape(w[k])).join(','))
+  );
+  return rows.join('\n');
+}
+function parseCsv(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; } else { inQuotes = false; }
+      }else field += c;
+    }else{
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
+      else if(c === '\r'){ /* skip */ }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => !(r.length===1 && r[0]===''));
+}
+
+document.getElementById('csv-export-btn').addEventListener('click', ()=>{
+  if(!words.length){ alert('エクスポートできる単語がありません'); return; }
+  const csv = '\uFEFF' + wordsToCsv(words);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `単語帳_${todayStr()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('csv-import-btn').addEventListener('click', ()=>{
+  document.getElementById('csv-import-input').click();
+});
+document.getElementById('csv-import-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const text = await file.text();
+  const rows = parseCsv(text.replace(/^\uFEFF/, ''));
+  if(rows.length < 2){ alert('CSVの中身が読み取れませんでした'); return; }
+  const header = rows[0].map(h=>h.trim());
+  const col = k => header.indexOf(k);
+  const wordIdx = col('word'), meaningIdx = col('meaning');
+  if(wordIdx === -1 || meaningIdx === -1){
+    alert('CSVに "word" と "meaning" の列が見つかりませんでした。エクスポートしたCSVの形式をご確認ください。');
+    return;
+  }
+  let added = 0, skipped = 0;
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    const word = (r[wordIdx]||'').trim();
+    const meaning = (r[meaningIdx]||'').trim();
+    if(!word || !meaning) continue;
+    if(isDuplicate(word)){ skipped++; continue; }
+    words.push(migrateWord({
+      id: uid(),
+      date: (col('date')>-1 && r[col('date')]) || todayStr(),
+      word, meaning,
+      example: (col('example')>-1 && r[col('example')]) || '',
+      streakJE: Number(col('streakJE')>-1 ? r[col('streakJE')] : 0) || 0,
+      intervalJE: Number(col('intervalJE')>-1 ? r[col('intervalJE')] : 0) || 0,
+      dueJE: (col('dueJE')>-1 && r[col('dueJE')]) || todayStr(),
+      streakEJ: Number(col('streakEJ')>-1 ? r[col('streakEJ')] : 0) || 0,
+      intervalEJ: Number(col('intervalEJ')>-1 ? r[col('intervalEJ')] : 0) || 0,
+      dueEJ: (col('dueEJ')>-1 && r[col('dueEJ')]) || todayStr()
+    }));
+    added++;
+  }
+  if(added>0){ await save(); renderLedger(); }
+  alert(`${added}件を読み込みました${skipped>0?`（${skipped}件は登録済みのためスキップ）`:''}`);
+});
+
+document.getElementById('reset-btn').addEventListener('click', async ()=>{
+  const allChecked = words.length>0 && words.every(w=>w.checked);
+  if(!allChecked){
+    if(!confirm('まだ未定着の単語があります。それでも全チェックをリセットしますか？')) return;
+  }
+  words.forEach(w=>{
+    if(!w.fame){
+      w.streakJE = 0; w.streakEJ = 0;
+      w.intervalJE = 0; w.intervalEJ = 0;
+      w.dueJE = todayStr(); w.dueEJ = todayStr();
+      updateMasteryFlags_(w);
+    }
+  });
+  await save();
+  renderLedger();
+});
+
+let currentTab = 'ledger';
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    if(currentTab==='study' && tab!=='study') flushSync();
+    currentTab = tab;
+    document.getElementById('panel-ledger').classList.toggle('hidden', tab!=='ledger');
+    document.getElementById('panel-spar').classList.toggle('hidden', tab!=='spar');
+    document.getElementById('panel-study').classList.toggle('hidden', tab!=='study');
+    document.getElementById('panel-stats').classList.toggle('hidden', tab!=='stats');
+    if(tab==='spar') renderSparEntry();
+    if(tab==='study'){
+      if(studySession){ renderStudyCard(); } else { renderStudyEntry(); }
+    }
+    if(tab==='stats') renderStatsEntry();
+  });
+});
+
+function buildRegistrationRules(ruleNumber){
+  return `${ruleNumber}. 単語帳に登録したいので、間違えた表現・不自然な言い回しに加えて、フィードバックの説明中にあなたが解説した単語や用法（私が明示的に質問していなくても）も含めて対象にしてください。誤りの指摘に限らず、「自然な表現の例」「別の言い方」として紹介した言い換え表現も、間違いがなくても全て候補として拾ってください（もったいなく取りこぼさないように、迷ったら含める方に倒してください）。
+   条件:
+   - 文全体ではなく、単語〜短いフレーズ単位（3〜5語程度）で切り出す
+   - 些細な言い換えは除き、次に使うときに間違えやすい本質的なポイントのみ
+   - 前置詞・語形など、パターンとして一般化できるものは具体例のままにせず一般化する。ただしその際、表記ゆれによる二重登録を防ぐため、必ず次の統一記法のみを使うこと（これ以外の書き方・装飾は禁止）：
+     - 動名詞が続く場合 → "<句> + doing"（例: start off with + doing）※ "-ing"「Ving」「(動名詞)」などの別表記は使わない
+     - to不定詞が続く場合 → "<句> + to do"（例: manage + to do）
+     - 名詞・目的語が続く場合 → "<句> + 名詞"（例: reside in + 名詞）
+     - それ以外（後ろに何も続かない単独の語・句）→ 語形変化させない原形のみ（動詞は原形、名詞は単数形。例: succeed、not reside in a house のような文脈情報は含めない）
+     - 句全体は文頭以外すべて小文字にし、前後の余分な空白・句読点は付けない
+   - 会話の途中で私が単語やフレーズの意味を質問した場合、その単語も対象に加える（意味は回答した内容を使う）
+   - 出題・会話中のヒントとして初めて紹介した単語・表現（例: 「〜に応えるはmeetを使います」等）も、私が初見であろう語彙として対象に加える
+   - 【重要】以下の「台帳に登録済みの単語一覧」に含まれている単語・フレーズそのもの（前置詞や語形を軽く足しただけの言い換え、例: 「reside」に対する「reside in + 名詞」、「succeed」に対する「succeed in + doing」）は対象から除外する。それらは台帳で既に管理されているので、再登録候補として出す必要はない。対象にするのは、登録済み一覧のどこにも無い、会話の中で新しく登場した単語・表現のみ
+   - この除外は「表現ごと」に個別に判定すること。1つのフィードバックの中に、登録済み単語自体への軽微な指摘（例: go by の時制）と、登録済み一覧には無い別の単語・熟語の解説（例: get used to + doing）が混ざっている場合、前者だけを除外し、後者は未登録の新出表現として必ず対象に含める
+   - 1つのフィードバックで複数の言い換え例（例: "I'll pay for us" と "I'll get this"）が出た場合は、それぞれ別項目として全て含める
+   - 判定・称賛のコメントを出した後に、おまけ・補足として付け加えた訂正や別表現（呼びかけ表現の言い換えなど）も、判定が済んでいるからといって除外せず同様に対象に含める
+   - 意味の書き方: 見出し語（自然な表現）の品詞に応じて、意味の先頭に必ず次のいずれかを付けてください（他の略記は使わない）:
+     形）形容詞の場合（例: 形）すばらしい）
+     名）名詞の場合（例: 名）名前）
+     動）動詞の場合（例: 動）達成する）
+     副）副詞の場合（例: 副）ゆっくり）
+     熟語・句動詞などで品詞判定が難しい場合は、最も近い品詞1つを選んで付けてください
+   - 全て終わった後、まとめとは別に「単語帳登録用」として以下の形式だけで再掲する（他の装飾やMarkdownは付けない）:
+     自然な表現 | 品詞）意味・注意点（誤: 元の不自然な表現、なければ省略可）
+     1行1項目で、この形式のブロックだけをコードブロックにして出力してください。`;
+}
+
+function buildQaPrompt(queue){
+  const lines = queue.map((w,i)=>{
+    let l = `${i+1}. ${w.word}（${w.meaning}）`;
+    if(w.example) l += `\n    自作例文: ${w.example}`;
+    return l;
+  }).join('\n');
+  const registeredList = words.map(w => w.word).join('、');
+  return `私の英単語学習の壁打ち相手になってください。
+
+以下は今日練習したい単語です：
+${lines}
+
+【参考：台帳に登録済みの単語一覧（新規候補の重複チェック用。意味だけを聞かれたときの回答用ではなく、下記ルール4の除外判定にのみ使ってください）】
+${registeredList}
+
+【壁打ちルール】
+1. 出題ルール:
+   - 上のリストからランダムに1つずつ選び、その単語を私が自然に使えるような質問を英語で投げかけてください。
+   - 1問につき対象単語1つに絞り、質問文自体には対象外の難しい・未知そうな表現をなるべく含めないでください（質問の意味を確認する往復が発生しないように）。
+   - 出題形式は状況設定質問だけに偏らせず、穴埋め・和文英訳・ロールプレイ的な返答依頼などをランダムに混ぜてください。
+   - ただし「状況設定」「ロールプレイ」形式の場合、\`You: "..."\` のように答えの文をあらかじめ書いて空欄だけ埋めさせる形式にはしないでください。状況説明と「使うべき単語のヒント」（例: 「lightから派生した副詞を使ってください」）だけを提示し、文章全体は私に自由に組み立てさせてください。空欄埋め形式は「穴埋め問題」のときだけ使ってください。
+   - 可能であれば、直前までに私が間違えた表現をさりげなく後の質問文に再登場させ、復習を兼ねてください。
+2. 私の返答に対して、文法や不自然な表現のフィードバックをしつつ、次の質問に進んでください。
+3. 上手く使えていたら「いいですね！」のように一言認めてから次に進んでください（台帳側でのチェック操作などは不要です）。
+${buildRegistrationRules(4)}
+5. 全部終わったら簡単にまとめをください。`;
+}
+
+function buildConversationPrompt(queue){
+  const wordList = queue.map(w => `${w.word}（${w.meaning}）`).join('、');
+  const registeredList = words.map(w => w.word).join('、');
+  return `私の英単語学習の壁打ち相手になってください。今回は1問1答形式ではなく、自然な会話のキャッチボールを通して練習したいです。
+
+【今日の会話でできるだけ多く使いたい単語】
+${wordList}
+
+【参考：台帳に登録済みの単語一覧（新規候補の重複チェック用。下記ルール5の除外判定にのみ使ってください）】
+${registeredList}
+
+【会話ルール】
+1. まずあなたから、自然な話題（雑談・ロールプレイ・ニュースへのコメントなど何でも構いません）を英語で1つ振って会話を始めてください。
+2. 会話を続ける中で、上の単語リストの語彙をできるだけ多く、不自然にならない範囲で使うように話を誘導してください。1ターンに詰め込みすぎて不自然な文章にならないよう、あくまで会話としての自然さを優先してください（全部を無理に使い切る必要はありません）。
+3. 私の返答に対しては、会話を止めずに続けながら、文法や不自然な表現があれば軽くフィードバックしてください（長い解説で会話のテンポを崩しすぎないように）。
+4. リストの単語を私が使えていたら、返答の中でさりげなく認めてください。
+${buildRegistrationRules(5)}
+6. 5〜10往復ほど会話が進んだら、一度区切りをつけて「今日使えた単語」「まだ使えていない単語」を一覧にして教えてください。そのあと私が続けたいと言えば、会話を続けてください。`;
+}
+function buildPrompt(queue){
+  return promptMode === 'conversation' ? buildConversationPrompt(queue) : buildQaPrompt(queue);
+}
+
+
+const SETTINGS_KEY = 'vocab-ledger-settings';
+const DEFAULT_GAS_URL = '';
+let reviewCount = 8;
+let gasUrl = '';
+let autoSpeak = false;
+let promptMode = 'qa';
+let studyDirMode = 'both';
+
+async function loadSettings(){
+  try{
+    const r = await window.storage.get(SETTINGS_KEY, false);
+    const s = r && r.value ? JSON.parse(r.value) : {};
+    reviewCount = Number.isFinite(s.reviewCount) ? s.reviewCount : 8;
+    gasUrl = s.gasUrl || DEFAULT_GAS_URL;
+    autoSpeak = !!s.autoSpeak;
+    promptMode = s.promptMode === 'conversation' ? 'conversation' : 'qa';
+    studyDirMode = (s.studyDirMode === 'je' || s.studyDirMode === 'ej') ? s.studyDirMode : 'both';
+    if(!s.gasUrl) await saveSettings();
+  }catch(e){ reviewCount = 8; gasUrl = DEFAULT_GAS_URL; autoSpeak = false; promptMode = 'qa'; studyDirMode = 'both'; }
+  const urlInput = document.getElementById('in-gasurl');
+  if(urlInput) urlInput.value = gasUrl;
+}
+async function saveSettings(){
+  try{ await window.storage.set(SETTINGS_KEY, JSON.stringify({reviewCount, gasUrl, autoSpeak, promptMode, studyDirMode}), false); }
+  catch(e){}
+}
+function setSyncStatus(msg){
+  const el = document.getElementById('sync-status');
+  if(el) el.textContent = msg;
+}
+
+let lastPdfUrl = '';
+function updatePdfLink(){
+  const el = document.getElementById('pdf-link');
+  if(!el) return;
+  el.innerHTML = lastPdfUrl
+    ? `<a href="${lastPdfUrl}" target="_blank" style="color:var(--gold);">単語カードPDFを開く</a>`
+    : '';
+}
+async function syncPush(forceRegenerate){
+  if(!gasUrl) return;
+  try{
+    const res = await fetch(gasUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ words, forceRegenerate: !!forceRegenerate })
+    });
+    const data = await res.json();
+    if(data && data.error === 'empty_write_blocked'){
+      setSyncStatus('⚠ 保存を中止しました: ' + (data.message || 'シート側の既存データを空で上書きしようとしたため'));
+      return;
+    }
+    if(data && data.pdfUrl){ lastPdfUrl = data.pdfUrl; updatePdfLink(); }
+    if(data && data.pdfError){ setSyncStatus('シート保存OK / カードPDF生成エラー: ' + data.pdfError); return; }
+    const uncheckedNote = data && data.pdfRegenerated ? '（カードPDFも更新）' : '';
+    setSyncStatus('シートへ保存しました' + uncheckedNote + ': ' + new Date().toLocaleTimeString());
+  }catch(e){
+    setSyncStatus('シートへの保存に失敗しました（URL・共有設定を確認してください）');
+  }
+}
+async function syncPull(){
+  if(!gasUrl) return false;
+  setSyncStatus('シートから取得中…');
+  try{
+    const res = await fetch(gasUrl, { method:'GET' });
+    const data = await res.json();
+    if(data && Array.isArray(data.words)){
+      if(data.words.length === 0 && words.length > 0){
+        const proceed = confirm(
+          `スプレッドシート側に単語が1件も見つかりませんでした。\n` +
+          `このまま取得すると、手元の${words.length}件のデータが失われる可能性があります。\n` +
+          `本当にシート側の内容（空）で上書きしますか？`
+        );
+        if(!proceed){
+          setSyncStatus('取得を中止しました（手元のデータはそのまま残っています）');
+          return false;
+        }
+      }
+      words = data.words.map(w=>migrateWord({
+        id: w.id || uid(),
+        date: w.date || todayStr(),
+        word: w.word || '',
+        meaning: w.meaning || '',
+        example: w.example || '',
+        streak: Number(w.streak) || 0,
+        interval: Number(w.interval) || 0,
+        due: w.due || '',
+        streakJE: w.streakJE !== undefined ? Number(w.streakJE) : undefined,
+        intervalJE: Number(w.intervalJE) || 0,
+        dueJE: w.dueJE || '',
+        streakEJ: w.streakEJ !== undefined ? Number(w.streakEJ) : undefined,
+        intervalEJ: Number(w.intervalEJ) || 0,
+        dueEJ: w.dueEJ || '',
+        lastSparAt: w.lastSparAt || '',
+        sparStreak: Number(w.sparStreak) || 0,
+        sparInterval: Number(w.sparInterval) || 0,
+        sparDue: w.sparDue || ''
+      }));
+      await save(false);
+      renderLedger();
+      setSyncStatus('同期しました: ' + new Date().toLocaleTimeString());
+      return true;
+    }
+    setSyncStatus('シートの形式が読み取れませんでした');
+  }catch(e){
+    setSyncStatus('シートからの取得に失敗しました（URL・共有設定を確認してください）');
+  }
+  return false;
+}
+
+document.getElementById('save-gas-btn').addEventListener('click', async ()=>{
+  gasUrl = document.getElementById('in-gasurl').value.trim();
+  await saveSettings();
+  if(gasUrl) await syncPull();
+});
+document.getElementById('pull-btn').addEventListener('click', async ()=>{
+  if(!gasUrl){ setSyncStatus('先にウェブアプリURLを保存してください'); return; }
+  await syncPull();
+});
+document.getElementById('force-card-btn').addEventListener('click', async ()=>{
+  if(!gasUrl){ setSyncStatus('先にウェブアプリURLを保存してください'); return; }
+  setSyncStatus('カードPDFを生成中…');
+  await syncPush(true);
+});
+
+// ==== プッシュ通知（10分おきの復習リマインド） ====
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB77KdGHko4CVsg6i_ZIBjFwLuEBMqUo9E",
+  authDomain: "learning-english-54775.firebaseapp.com",
+  projectId: "learning-english-54775",
+  storageBucket: "learning-english-54775.firebasestorage.app",
+  messagingSenderId: "80903120119",
+  appId: "1:80903120119:web:605466a4c761fca676dff2"
+};
+const FCM_VAPID_KEY = 'BHqHilIroApPeVSpgj8MqyO9JRMHVk3BMubkpvc0X9b6P1b0DSAeouLjBLCN36O_RBH8dzv9STpoh-DYSokSg0Y';
+
+async function enableNotifications(){
+  const statusEl = document.getElementById('notif-status');
+  const log = (msg) => { statusEl.textContent = msg; console.log('[notif]', msg); };
+
+  if(!('Notification' in window)){
+    log('診断: このブラウザに Notification API がありません');
+    return;
+  }
+  if(!('serviceWorker' in navigator)){
+    log('診断: このブラウザに Service Worker API がありません');
+    return;
+  }
+  if(!window.isSecureContext){
+    log('診断: 安全なコンテキスト(HTTPS)として認識されていません');
+    return;
+  }
+  if(!gasUrl){
+    log('先にスプレッドシート同期のURLを保存してください');
+    return;
+  }
+  try{
+    log('Service Worker準備中…');
+    const reg = await navigator.serviceWorker.register('./sw.js');
+    await navigator.serviceWorker.ready;
+    log('通知権限をリクエスト中…');
+
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){
+      log('通知が許可されませんでした（結果: ' + perm + '）');
+      return;
+    }
+    if(typeof firebase === 'undefined'){
+      log('診断エラー: firebaseライブラリが読み込まれていません');
+      return;
+    }
+    if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    const messaging = firebase.messaging();
+    const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
+    await fetch(gasUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'registerToken', token })
+    });
+    log('通知を有効にしました');
+  }catch(e){
+    console.error(e);
+    log('診断エラー（' + (e && e.name) + '）: ' + (e && e.message ? e.message : e));
+  }
+}
+document.getElementById('enable-notif-btn').addEventListener('click', enableNotifications);
+
+// ==== カード学習（Quizlet風フリップカード） ====
+let studySession = null;
+
+function shuffleArr(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function speakWord(text){
+  if(!text || !('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  window.speechSynthesis.speak(u);
+}
+
+function renderStatsEntry(){
+  const body = document.getElementById('stats-body');
+  const todayKey = todayStr();
+  const [ty, tm] = todayKey.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(ty, tm, 0)).getUTCDate();
+  const firstWeekday = new Date(Date.UTC(ty, tm-1, 1)).getUTCDay();
+
+  const dueTodayCount = words.filter(isDueToday).length;
+  const dueJeCount = words.filter(w=>isDueForDirection(w, false)).length;
+  const dueEjCount = words.filter(w=>isDueForDirection(w, true)).length;
+  const fameCount = words.filter(w=>w.fame).length;
+  const todayEntry = studyLog[todayKey];
+  const todayJe = todayEntry ? (todayEntry.je||0) : 0;
+  const todayEj = todayEntry ? (todayEntry.ej||0) : 0;
+
+  let streakDays = 0;
+  let cursorKey = todayKey;
+  while(studyLogTotal(studyLog[cursorKey]) > 0){
+    streakDays++;
+    cursorKey = addDays(cursorKey, -1);
+  }
+
+  function levelClass(count){
+    if(!count) return 'lv0';
+    if(count < 5) return 'lv1';
+    if(count < 10) return 'lv2';
+    if(count < 20) return 'lv3';
+    return 'lv4';
+  }
+
+  let cells = '';
+  for(let i=0;i<firstWeekday;i++) cells += '<div class="cal-cell lv0 empty"></div>';
+  for(let d=1; d<=daysInMonth; d++){
+    const key = `${ty}-${String(tm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const entry = studyLog[key];
+    const total = studyLogTotal(entry);
+    const isToday = key === todayKey;
+    const title = entry ? `${key}: 日→英 ${entry.je||0}回 / 英→日 ${entry.ej||0}回` : `${key}: 0回`;
+    cells += `<div class="cal-cell ${levelClass(total)} ${isToday?'today':''}" title="${title}">${d}</div>`;
+  }
+
+  body.innerHTML = `
+    <div class="stats-summary">
+      <div class="stat-box"><div class="stat-num">${todayJe}</div><div class="stat-label">今日 日→英</div></div>
+      <div class="stat-box"><div class="stat-num">${todayEj}</div><div class="stat-label">今日 英→日</div></div>
+      <div class="stat-box"><div class="stat-num">${streakDays}</div><div class="stat-label">連続日数</div></div>
+      <div class="stat-box"><div class="stat-num">${fameCount}</div><div class="stat-label">殿堂入り</div></div>
+    </div>
+    <div class="stats-summary" style="margin-top:-8px;">
+      <div class="stat-box"><div class="stat-num">${dueJeCount}</div><div class="stat-label">復習対象 日→英</div></div>
+      <div class="stat-box"><div class="stat-num">${dueEjCount}</div><div class="stat-label">復習対象 英→日</div></div>
+      <div class="stat-box"><div class="stat-num">${dueTodayCount}</div><div class="stat-label">復習対象 合計</div></div>
+      <div class="stat-box"></div>
+    </div>
+    <div class="cal-title">${ty}年${tm}月</div>
+    <div class="cal-grid cal-head">
+      <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    <div class="cal-legend">少ない
+      <span class="cal-cell lv0 mini"></span><span class="cal-cell lv1 mini"></span><span class="cal-cell lv2 mini"></span><span class="cal-cell lv3 mini"></span><span class="cal-cell lv4 mini"></span>
+      多い</div>
+    <div class="stats-note">※この記録はこの端末内だけに保存されます（通信量を抑えるため、他の端末やスプレッドシートとは同期しません）</div>
+  `;
+}
+
+function renderStudyEntry(){
+  if(!words.length){
+    document.getElementById('study-body').innerHTML = '<div class="spar-empty">単語がまだありません。<br>台帳タブで単語を追加してください。</div>';
+    return;
+  }
+  const wantJe = studyDirMode === 'both' || studyDirMode === 'je';
+  const wantEj = studyDirMode === 'both' || studyDirMode === 'ej';
+  const dueItems = [];
+  words.forEach(w=>{
+    if(wantJe && isDueForDirection(w, false)) dueItems.push({wordId:w.id, dir:'je'});
+    if(wantEj && isDueForDirection(w, true)) dueItems.push({wordId:w.id, dir:'ej'});
+  });
+  let queueItems = dueItems;
+  const allCaughtUp = dueItems.length === 0;
+  if(allCaughtUp){
+    queueItems = [];
+    words.forEach(w=>{
+      if(wantJe) queueItems.push({wordId:w.id, dir:'je'});
+      if(wantEj) queueItems.push({wordId:w.id, dir:'ej'});
+    });
+  }
+  studySession = { queue: shuffleArr(queueItems), idx: 0, allCaughtUp };
+  renderStudyCard();
+}
+
+function renderStudyCard(){
+  const body = document.getElementById('study-body');
+  if(!studySession || !studySession.queue.length){
+    body.innerHTML = '<div class="spar-empty">対象の単語がありません。</div>';
+    return;
+  }
+  if(studySession.idx >= studySession.queue.length){
+    flushSync();
+    body.innerHTML = `
+      <div class="session-done">
+        <div class="stampmark">済</div>
+        今回のカード学習は終了です。お疲れさまでした。
+      </div>
+      <div style="text-align:center;margin-top:14px;">
+        <button class="spar-start" id="study-restart">もう一度</button>
+      </div>
+    `;
+    document.getElementById('study-restart').addEventListener('click', renderStudyEntry);
+    return;
+  }
+  const item = studySession.queue[studySession.idx];
+  const w = words.find(x=>x.id===item.wordId);
+  if(!w){ studySession.idx++; renderStudyCard(); return; }
+  const dir = item.dir;
+  const showWordFirst = dir === 'ej';
+  const dirLabel = dir === 'ej' ? '英→日' : '日→英';
+  const frontText = showWordFirst ? w.word : w.meaning;
+  const backText = showWordFirst ? w.meaning : w.word;
+  const todayEntry = studyLog[todayStr()];
+  const todayJe = todayEntry ? (todayEntry.je||0) : 0;
+  const todayEj = todayEntry ? (todayEntry.ej||0) : 0;
+  body.innerHTML = `
+    ${studySession.allCaughtUp ? '<div class="due-note">🎉 今日の復習分は完了済み。全単語・両方向から出題しています</div>' : ''}
+    <div class="study-nav-row">
+      <button class="nav-btn" id="study-prev" title="前へ" ${studySession.idx===0?'disabled':''}>◀</button>
+      <div class="study-progress">${studySession.idx+1} / ${studySession.queue.length}${w.fame?' <span class="badge fame">殿堂</span>':''}</div>
+      <button class="nav-btn" id="study-next" title="次へ">▶</button>
+    </div>
+    <div class="dir-badge">${dirLabel}</div>
+    <div class="flip-card" id="flip-card">
+      <div class="flip-inner" id="flip-inner">
+        <div class="flip-face flip-front">${escapeHtml(frontText)}</div>
+        <div class="flip-face flip-back">${escapeHtml(backText)}</div>
+      </div>
+    </div>
+    <div class="flip-hint">タップでめくる・右スワイプで覚えた／左スワイプでまだ</div>
+    <div class="judge-row">
+      <button class="judge-btn unknown" id="study-unknown">✕ まだ</button>
+      <button class="judge-btn known" id="study-known">✓ 覚えた！</button>
+    </div>
+    <div style="text-align:center;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <button class="speak-btn" id="study-speak" title="発音を再生" aria-label="発音を再生">🔊</button>
+      <button class="chip ${autoSpeak?'active':''}" id="study-autospeak">🔁 自動再生${autoSpeak?' ON':' OFF'}</button>
+    </div>
+    <div class="study-today-count">今日: 日→英 ${todayJe}回 ・ 英→日 ${todayEj}回</div>
+    <div class="study-controls">
+      <button class="chip" id="study-shuffle">🔀 シャッフル</button>
+    </div>
+  `;
+  function wordSideVisible(flippedNow){
+    return showWordFirst ? !flippedNow : flippedNow;
+  }
+  function toggleFlip(){
+    const inner = document.getElementById('flip-inner');
+    inner.classList.toggle('flipped');
+    if(autoSpeak && wordSideVisible(inner.classList.contains('flipped'))){
+      speakWord(w.word);
+    }
+  }
+  const flipCard = document.getElementById('flip-card');
+  async function commitJudgment(known){
+    if(known){ applySrsKnown(w, showWordFirst); } else { applySrsUnknown(w, showWordFirst); }
+    syncDirty = true;
+    await save(false);
+    await bumpStudyLog(dir);
+    studySession.idx++;
+    renderStudyCard();
+    renderLedger();
+  }
+  attachSwipeHandlers(
+    flipCard,
+    toggleFlip,
+    ()=>{ commitJudgment(true); },
+    ()=>{ commitJudgment(false); }
+  );
+  const speakBtn = document.getElementById('study-speak');
+  if(!('speechSynthesis' in window)){
+    speakBtn.disabled = true;
+    speakBtn.title = 'このブラウザは音声読み上げに対応していません';
+  }
+  speakBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    speakWord(w.word);
+  });
+  document.getElementById('study-autospeak').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    autoSpeak = !autoSpeak;
+    saveSettings();
+    const btn = e.currentTarget;
+    btn.classList.toggle('active', autoSpeak);
+    btn.textContent = '🔁 自動再生' + (autoSpeak ? ' ON' : ' OFF');
+  });
+  if(autoSpeak && wordSideVisible(false)){
+    speakWord(w.word);
+  }
+  document.getElementById('study-shuffle').addEventListener('click', ()=>{
+    const remaining = studySession.queue.slice(studySession.idx);
+    studySession.queue = shuffleArr(remaining);
+    studySession.idx = 0;
+    renderStudyCard();
+  });
+  document.getElementById('study-prev').addEventListener('click', ()=>{
+    if(studySession.idx>0){ studySession.idx--; renderStudyCard(); }
+  });
+  document.getElementById('study-next').addEventListener('click', ()=>{
+    studySession.idx++;
+    renderStudyCard();
+  });
+  document.getElementById('study-unknown').addEventListener('click', async ()=>{
+    await flingCard(flipCard, 'left');
+    await commitJudgment(false);
+  });
+  document.getElementById('study-known').addEventListener('click', async ()=>{
+    await flingCard(flipCard, 'right');
+    await commitJudgment(true);
+  });
+}
+
+function flingCard(card, direction){
+  return new Promise(resolve=>{
+    const dx = direction === 'right' ? 520 : -520;
+    const rot = direction === 'right' ? 26 : -26;
+    card.style.transition = 'transform .22s ease, opacity .22s ease';
+    card.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+    card.style.opacity = '0';
+    setTimeout(resolve, 190);
+  });
+}
+
+function attachSwipeHandlers(card, onTap, onSwipeRight, onSwipeLeft){
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false, moved = false;
+  const THRESHOLD = 70;
+
+  card.addEventListener('pointerdown', (e)=>{
+    dragging = true; moved = false; dx = 0; dy = 0;
+    startX = e.clientX; startY = e.clientY;
+    try{ card.setPointerCapture(e.pointerId); }catch(err){}
+    card.classList.add('swiping');
+  });
+  card.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    dx = e.clientX - startX;
+    dy = e.clientY - startY;
+    if(Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)){
+      moved = true;
+      const rot = dx / 18;
+      card.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+      card.style.opacity = String(Math.max(1 - Math.abs(dx)/280, 0.4));
+    }
+  });
+  function finish(){
+    if(!dragging) return;
+    dragging = false;
+    card.classList.remove('swiping');
+    if(moved && Math.abs(dx) > THRESHOLD){
+      const goingRight = dx > 0;
+      flingCard(card, goingRight ? 'right' : 'left').then(()=>{
+        goingRight ? onSwipeRight() : onSwipeLeft();
+      });
+    }else{
+      card.style.transition = 'transform .2s ease, opacity .2s ease';
+      card.style.transform = '';
+      card.style.opacity = '';
+      if(!moved) onTap();
+      setTimeout(()=>{ card.style.transition = ''; }, 210);
+    }
+  }
+  card.addEventListener('pointerup', finish);
+  card.addEventListener('pointercancel', finish);
+}
+
+function buildSessionQueue(){
+  const progressed = words.filter(w => (w.streakJE||0) >= 1 && (w.streakEJ||0) >= 1);
+  const duePool = progressed.filter(w => isDueForDirection(w, false) || isDueForDirection(w, true));
+  const basePool = duePool.length ? duePool : progressed;
+  const sparFresh = basePool.filter(isSparDueToday);
+  const pool = sparFresh.length ? sparFresh : basePool;
+  const shuffled = pool.slice().sort(()=>Math.random()-0.5);
+  return shuffled.slice(0, Math.min(reviewCount, shuffled.length));
+}
+
+function renderSparEntry(){
+  const body = document.getElementById('spar-body');
+  if(!words.length){
+    body.innerHTML = `<div class="spar-empty">単語がまだありません。<br>台帳タブで単語を追加してください。</div>`;
+    return;
+  }
+  const finalPicked = buildSessionQueue();
+  if(!finalPicked.length){
+    body.innerHTML = `<div class="spar-empty">壁打ちで使える単語がまだありません。<br>まずはカード学習で日→英・英→日の両方向とも「覚えた！」を1回以上通過した単語が対象になります。</div>`;
+    return;
+  }
+  session = { queue: finalPicked };
+  const progressedCount = words.filter(w=>(w.streakJE||0)>=1 && (w.streakEJ||0)>=1).length;
+  const dueCount = words.filter(w=>(w.streakJE||0)>=1 && (w.streakEJ||0)>=1 && (isDueForDirection(w,false)||isDueForDirection(w,true))).length;
+  const promptText = buildPrompt(finalPicked);
+  body.innerHTML = `
+    <div class="form-row" style="align-items:flex-end;margin-bottom:4px;">
+      <div class="field" style="max-width:140px;">
+        <label>抽出数（定着が進んだ単語から）</label>
+        <input id="review-count-input" type="number" min="0" max="50" value="${reviewCount}">
+      </div>
+      <button class="add-btn" id="regen-btn">この語数で再抽出</button>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin:10px 0 6px;">今日練習する単語</p>
+    <p style="font-size:11px;color:var(--ink-soft);margin:0 0 10px;">両方向とも定着が進んだ単語 ${progressedCount}語中、本日復習対象 ${dueCount}語 → ${finalPicked.length}語を抽出（壁打ちの結果はSRSには反映されません）</p>
+    <div class="pool" id="spar-pool">${session.queue.map(w=>`<span data-id="${w.id}">${escapeHtml(w.word)}</span>`).join('')}</div>
+    <div class="chips" style="margin:14px 0 4px;">
+      <div class="chip ${promptMode==='qa'?'active':''}" data-mode="qa">1問1答モード</div>
+      <div class="chip ${promptMode==='conversation'?'active':''}" data-mode="conversation">会話モード</div>
+    </div>
+    <p style="font-size:11px;color:var(--ink-soft);margin:0 0 10px;">${promptMode==='conversation' ? '自由な会話の中に、リストの単語をできるだけ多く自然に登場させる形式です。' : '単語を1つずつ順番に出題する、ドリル寄りの形式です。'}</p>
+    <p style="font-size:13px;color:var(--ink-soft);margin:6px 0 6px;">下のプロンプトをコピーして、普段お使いのAIチャット（無料枠でOK）に貼り付けてください。会話の中で新しく出てきた表現は下の「気づいた表現を台帳に追加」からどうぞ。</p>
+    <textarea id="prompt-text" readonly style="height:180px;font-size:12px;line-height:1.5;">${escapeHtml(promptText)}</textarea>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;">
+      <button class="spar-start" id="copy-btn">プロンプトをコピー</button>
+      <button class="add-btn" id="spar-done-btn" style="background:#fff;color:var(--ink);border:1px solid var(--ink);">✓ 完了しました</button>
+      <span id="copy-msg" style="font-size:12px;color:var(--green);display:none;">コピーしました</span>
+      <span id="spar-done-msg" style="font-size:12px;color:var(--green);display:none;">記録しました。この単語たちは間隔をあけて次に出てきます</span>
+    </div>
+
+    <div class="card-title" style="margin-top:24px;">気づいた表現を台帳に追加 <span class="tag">QUICK ADD</span></div>
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;">AIの添削で出てきた自然な言い回しや、間違えた表現をそのまま登録できます。</p>
+    <div class="form-row top">
+      <div class="field"><label>表現</label><input id="quick-word" placeholder="convenient transportation" spellcheck="true" lang="en"></div>
+      <div class="field"><label>意味・メモ</label><textarea id="quick-meaning" placeholder="交通の便が良い" rows="1" style="resize:vertical;min-height:38px;"></textarea></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>例文（任意）</label><input id="quick-example" placeholder="The transportation is very convenient." spellcheck="true" lang="en"></div>
+      <button class="add-btn" id="quick-add-btn">台帳に追加</button>
+    </div>
+    <div class="err" id="quick-err">表現と意味を入力してください</div>
+    <div id="quick-msg" style="font-size:12px;color:var(--green);display:none;margin-top:-4px;">台帳に追加しました</div>
+
+    <div class="card-title" style="margin-top:24px;">まとめて登録 <span class="tag">BULK ADD</span></div>
+    <p style="font-size:12px;color:var(--ink-soft);margin:0 0 8px;">壁打ちの最後に出てくる「単語帳登録用」ブロック（<code>表現 | 意味</code>を1行ずつ）をそのまま貼り付けてください。</p>
+    <textarea id="bulk-text" placeholder="convenient transportation | 交通の便が良い（誤: comfortable translation）
+there are three train lines | 〜がある（誤: there there have）" style="height:110px;font-size:12px;"></textarea>
+    <div class="form-row" style="margin-top:8px;">
+      <button class="add-btn" id="bulk-add-btn">一括で台帳に追加</button>
+    </div>
+    <div class="err" id="bulk-err">「表現 | 意味」の形式で1行以上入力してください</div>
+    <div id="bulk-msg" style="font-size:12px;color:var(--green);display:none;"></div>
+  `;
+  document.getElementById('bulk-add-btn').addEventListener('click', async ()=>{
+    const raw = document.getElementById('bulk-text').value;
+    const err = document.getElementById('bulk-err');
+    const msg = document.getElementById('bulk-msg');
+    const lines = raw.split('\n')
+      .map(l=>l.replace(/^```$/,'').trim())
+      .filter(l=>l && l.includes('|'));
+    if(!lines.length){ err.textContent='「表現 | 意味」の形式で1行以上入力してください'; err.style.display='block'; msg.style.display='none'; return; }
+    err.style.display='none';
+    const btn = document.getElementById('bulk-add-btn');
+    setBtnLoading(btn, true, '追加中…');
+    let added = 0, skipped = 0;
+    try{
+      for(const line of lines){
+        const idx = line.indexOf('|');
+        const word = line.slice(0, idx).trim();
+        const meaning = line.slice(idx+1).trim();
+        if(!word || !meaning) continue;
+        if(isDuplicate(word)){ skipped++; continue; }
+        words.push(migrateWord({id:uid(), date:todayStr(), word, meaning, example:''}));
+        added++;
+      }
+      if(added>0){
+        await save();
+        renderLedger();
+      }
+    }finally{
+      setBtnLoading(btn, false);
+    }
+    document.getElementById('bulk-text').value = '';
+    if(added>0 || skipped>0){
+      msg.textContent = `${added}件を追加しました${skipped>0?`（${skipped}件は登録済みのためスキップ）`:''}`;
+      msg.style.display='block';
+      setTimeout(()=>{ msg.style.display='none'; }, 4000);
+    }else{
+      err.textContent='「表現 | 意味」の形式で1行以上入力してください';
+      err.style.display='block';
+    }
+  });
+  document.getElementById('quick-add-btn').addEventListener('click', async ()=>{
+    const word = document.getElementById('quick-word').value.trim();
+    const meaning = document.getElementById('quick-meaning').value.trim();
+    const example = document.getElementById('quick-example').value.trim();
+    const err = document.getElementById('quick-err');
+    const msg = document.getElementById('quick-msg');
+    if(!word || !meaning){ err.textContent='表現と意味を入力してください'; err.style.display='block'; msg.style.display='none'; return; }
+    if(isDuplicate(word)){ err.textContent='この単語はすでに登録されています'; err.style.display='block'; msg.style.display='none'; return; }
+    err.style.display='none';
+    const btn = document.getElementById('quick-add-btn');
+    setBtnLoading(btn, true, '追加中…');
+    try{
+      await addWord(word, meaning, example);
+      document.getElementById('quick-word').value='';
+      document.getElementById('quick-meaning').value='';
+      document.getElementById('quick-example').value='';
+      msg.style.display='block';
+      setTimeout(()=>{ msg.style.display='none'; }, 2000);
+    }finally{
+      setBtnLoading(btn, false);
+    }
+  });
+
+  ['quick-word', 'quick-meaning', 'quick-example'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('quick-add-btn').click();
+      }
+    });
+  });
+
+  document.getElementById('regen-btn').addEventListener('click', async ()=>{
+    const v = Math.max(0, Math.min(50, parseInt(document.getElementById('review-count-input').value, 10) || 0));
+    reviewCount = v;
+    await saveSettings();
+    renderSparEntry();
+  });
+  document.querySelectorAll('#panel-spar .chip[data-mode]').forEach(chip=>{
+    chip.addEventListener('click', async ()=>{
+      promptMode = chip.dataset.mode;
+      await saveSettings();
+      renderSparEntry();
+    });
+  });
+  document.getElementById('copy-btn').addEventListener('click', async ()=>{
+    const ta = document.getElementById('prompt-text');
+    try{
+      await navigator.clipboard.writeText(ta.value);
+    }catch(e){
+      ta.select();
+      document.execCommand('copy');
+    }
+    const msg = document.getElementById('copy-msg');
+    msg.style.display = 'inline';
+    setTimeout(()=>{ msg.style.display='none'; }, 2000);
+  });
+  document.getElementById('spar-done-btn').addEventListener('click', async ()=>{
+    session.queue.forEach(qw=>{
+      const w = words.find(x=>x.id===qw.id);
+      if(w) applySparProgress(w);
+    });
+    await save();
+    const msg = document.getElementById('spar-done-msg');
+    msg.style.display = 'inline';
+    setTimeout(()=>{ msg.style.display='none'; }, 3000);
+  });
+}
+
+async function init(){
+  await loadSettings();
+  syncStudyDirChipsUI();
+  await load();
+  await loadStudyLog();
+  if(gasUrl) await syncPull();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* 通知未使用でも念のため試すが、失敗は無視 */ });
+  }
+}
+init();
+</script>
+</body>
+</html>
