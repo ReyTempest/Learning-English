@@ -1797,6 +1797,21 @@ there are three train lines | 〜がある（誤: there there have）" style="he
   });
 }
 
+// 通知本体タップで来た単語を、カード学習タブで即座に1枚だけ表示する
+function openSingleWordReview(wordId, direction){
+  const w = words.find(x => x.id === wordId);
+  if(!w) return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="study"]').classList.add('active');
+  currentTab = 'study';
+  document.getElementById('panel-ledger').classList.add('hidden');
+  document.getElementById('panel-spar').classList.add('hidden');
+  document.getElementById('panel-study').classList.remove('hidden');
+  document.getElementById('panel-stats').classList.add('hidden');
+  studySession = { queue: [{ wordId, dir: direction === 'ej' ? 'ej' : 'je' }], idx: 0, allCaughtUp: false };
+  renderStudyCard();
+}
+  
 async function init(){
   await loadSettings();
   syncStudyDirChipsUI();
@@ -1805,6 +1820,20 @@ async function init(){
   if(gasUrl) await syncPull();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* 通知未使用でも念のため試すが、失敗は無視 */ });
+    // 既に開いているタブに通知が来た場合（Service Workerからのメッセージ）
+    navigator.serviceWorker.addEventListener('message', (event)=>{
+      if(event.data && event.data.type === 'open-review'){
+        openSingleWordReview(event.data.wordId, event.data.direction);
+      }
+    });
+  }
+  // 通知タップで新規に開かれた場合（URLのクエリから読む）
+  const params = new URLSearchParams(location.search);
+  const reviewId = params.get('review');
+  if(reviewId){
+    openSingleWordReview(reviewId, params.get('dir') || 'je');
+    // URLを綺麗に戻しておく（再読み込みで再度開かないように）
+    history.replaceState(null, '', location.pathname);
   }
 }
 init();
