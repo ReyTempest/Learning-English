@@ -1521,16 +1521,22 @@ function renderStudyCard(){
   }
   if(studySession.idx >= studySession.queue.length){
     flushSync();
+    const fromNotif = studySession.fromNotification;
     body.innerHTML = `
       <div class="session-done">
         <div class="stampmark">済</div>
-        今回のカード学習は終了です。お疲れさまでした。
+        ${fromNotif ? 'この単語の判定が完了しました。' : '今回のカード学習は終了です。お疲れさまでした。'}
       </div>
-      <div style="text-align:center;margin-top:14px;">
-        <button class="spar-start" id="study-restart">もう一度</button>
+      <div style="text-align:center;margin-top:14px;display:flex;gap:8px;flex-direction:column;">
+        ${fromNotif ? '<button class="spar-start" id="study-continue">続けて復習する</button>' : ''}
+        <button class="spar-start" id="study-restart" style="${fromNotif ? 'background:#fff;color:var(--ink);border:1px solid var(--ink);' : ''}">もう一度</button>
       </div>
     `;
     document.getElementById('study-restart').addEventListener('click', renderStudyEntry);
+    const continueBtn = document.getElementById('study-continue');
+    if(continueBtn){
+      continueBtn.addEventListener('click', renderStudyEntry);
+    }
     return;
   }
   const item = studySession.queue[studySession.idx];
@@ -1875,8 +1881,12 @@ there are three train lines | 〜がある（誤: there there have）" style="he
   });
 }
 
-// 通知本体タップで来た単語を、カード学習タブで即座に1枚だけ表示する
-function openSingleWordReview(wordId, direction){
+async function openSingleWordReview(wordId, direction){
+  // 通知のボタン操作(サーバー側)で更新された可能性があるSRS状態を、
+  // アプリのlocalStorageより先に取り込んでおく（食い違ったまま上書きしないように）
+  if(gasUrl){
+    await syncPull();
+  }
   const w = words.find(x => x.id === wordId);
   if(!w) return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1886,7 +1896,7 @@ function openSingleWordReview(wordId, direction){
   document.getElementById('panel-spar').classList.add('hidden');
   document.getElementById('panel-study').classList.remove('hidden');
   document.getElementById('panel-stats').classList.add('hidden');
-  studySession = { queue: [{ wordId, dir: direction === 'ej' ? 'ej' : 'je' }], idx: 0, allCaughtUp: false };
+  studySession = { queue: [{ wordId, dir: direction === 'ej' ? 'ej' : 'je' }], idx: 0, allCaughtUp: false, fromNotification: true };
   renderStudyCard();
 }
   
