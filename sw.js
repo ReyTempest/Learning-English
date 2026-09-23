@@ -35,25 +35,42 @@ const NOTIF_ICON = 'data:image/svg+xml,' + encodeURIComponent(`
 </svg>
 `);
 
+let appIsVisible = false;
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'visibility') {
+    appIsVisible = !!event.data.visible;
+  }
+});
+
 self.addEventListener('push', (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch (e) {}
   const data = payload.data || payload;
   const title = data.title || '単語壁打ち帳';
   const body = data.body || '復習の時間です';
+
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: NOTIF_ICON,
-      badge: NOTIF_ICON,
-      tag: 'vocab-review',
-      renotify: true,
-      data,
-      actions: [
-        { action: 'known', title: '✓ 覚えた' },
-        { action: 'unknown', title: '✕ まだ' }
-      ]
-    })
+    (async () => {
+      // アプリが今フォアグラウンドで表示中なら、通知は出さない
+      const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const hasVisibleClient = clientList.some(c => c.visibilityState === 'visible');
+      if (hasVisibleClient || appIsVisible) {
+        return;
+      }
+      return self.registration.showNotification(title, {
+        body,
+        icon: NOTIF_ICON,
+        badge: NOTIF_ICON,
+        tag: 'vocab-review',
+        renotify: true,
+        data,
+        actions: [
+          { action: 'known', title: '✓ 覚えた' },
+          { action: 'unknown', title: '✕ まだ' }
+        ]
+      });
+    })()
   );
 });
 
