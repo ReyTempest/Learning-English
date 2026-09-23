@@ -431,6 +431,16 @@ button:disabled:active{
     <div id="pdf-link" style="font-size:12px;margin-top:4px;"></div>
     <div class="form-row" style="margin-top:10px;align-items:center;">
       <button class="add-btn" id="enable-notif-btn" style="background:#fff;color:var(--ink);border:1px solid var(--ink);">🔔 通知を有効にする</button>
+      <div class="field" style="max-width:140px;">
+        <label>通知の頻度</label>
+        <select id="notif-interval-select">
+          <option value="1">1分おき</option>
+          <option value="5">5分おき</option>
+          <option value="10" selected>10分おき</option>
+          <option value="15">15分おき</option>
+          <option value="30">30分おき</option>
+        </select>
+      </div>
       <span id="notif-status" style="font-size:11px;color:var(--ink-soft);"></span>
     </div>
   </div>
