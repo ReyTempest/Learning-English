@@ -1061,7 +1061,15 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('panel-stats').classList.toggle('hidden', tab!=='stats');
     if(tab==='spar') renderSparEntry();
     if(tab==='study'){
-      if(studySession){ renderStudyCard(); } else { renderStudyEntry(); }
+      if(studySession){
+        renderStudyCard();
+      } else {
+        if(gasUrl){
+          syncPull().then(renderStudyEntry);
+        } else {
+          renderStudyEntry();
+        }
+      }
     }
     if(tab==='stats') renderStatsEntry();
   });
