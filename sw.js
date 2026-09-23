@@ -27,7 +27,14 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ---- プッシュ通知の受信 ----
+// シンプルな和紙風アイコン（SVGをそのままdata URIとして使用。画像ファイルの用意が不要）
+const NOTIF_ICON = 'data:image/svg+xml,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="18" fill="#26313E"/>
+  <text x="50" y="66" font-size="52" text-anchor="middle" fill="#EFE9DB" font-family="sans-serif">単</text>
+</svg>
+`);
+
 self.addEventListener('push', (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch (e) {}
@@ -37,6 +44,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
+      icon: NOTIF_ICON,
+      badge: NOTIF_ICON,
       tag: 'vocab-review',
       renotify: true,
       data,
