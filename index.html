@@ -1917,6 +1917,20 @@ async function init(){
   await restoreNotifStatus();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* 通知未使用でも念のため試すが、失敗は無視 */ });
+
+    // アプリの表示/非表示状態をService Workerに伝える
+    // （フォアグラウンド中は通知を出さないようにするため）
+    function notifyVisibilityToSW(){
+      if(navigator.serviceWorker && navigator.serviceWorker.controller){
+        navigator.serviceWorker.controller.postMessage({
+          type: 'visibility',
+          visible: document.visibilityState === 'visible'
+        });
+      }
+    }
+    document.addEventListener('visibilitychange', notifyVisibilityToSW);
+    navigator.serviceWorker.ready.then(notifyVisibilityToSW);
+
     // 既に開いているタブに通知が来た場合（Service Workerからのメッセージ）
     navigator.serviceWorker.addEventListener('message', (event)=>{
       if(event.data && event.data.type === 'open-review'){
