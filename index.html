@@ -1283,6 +1283,46 @@ const FIREBASE_CONFIG = {
 };
 const FCM_VAPID_KEY = 'BHqHilIroApPeVSpgj8MqyO9JRMHVk3BMubkpvc0X9b6P1b0DSAeouLjBLCN36O_RBH8dzv9STpoh-DYSokSg0Y';
 
+const NOTIF_ENABLED_KEY = 'vocab-notif-enabled';
+
+function setNotifBtnState(enabled){
+  const btn = document.getElementById('enable-notif-btn');
+  if(enabled){
+    btn.textContent = '🔔 通知ON';
+    btn.style.background = 'var(--green)';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+  }else{
+    btn.textContent = '🔔 通知を有効にする';
+    btn.style.background = '#fff';
+    btn.style.color = 'var(--ink)';
+    btn.style.border = '1px solid var(--ink)';
+  }
+}
+
+// 起動時に、ブラウザの通知許可状態と前回の登録記録から表示を復元する
+async function restoreNotifStatus(){
+  const locallyEnabled = localStorage.getItem(NOTIF_ENABLED_KEY) === '1';
+  const permGranted = ('Notification' in window) && Notification.permission === 'granted';
+  setNotifBtnState(locallyEnabled && permGranted);
+
+  // サーバー側の頻度設定も反映（同期URLが設定済みなら）
+  if(gasUrl){
+    try{
+      const res = await fetch(gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=notifyStatus');
+      const data = await res.json();
+      if(data && data.ok){
+        const sel = document.getElementById('notif-interval-select');
+        if(sel) sel.value = String(data.intervalMinutes);
+        // サーバー側にトークンが1件も無ければ、ブラウザ側の記録が古い可能性があるのでOFF扱いにする
+        if(!data.hasTokens){
+          setNotifBtnState(false);
+        }
+      }
+    }catch(e){ /* 取得失敗時は何もしない（ボタン表示は現状維持） */ }
+  }
+}
+
 async function enableNotifications(){
   const statusEl = document.getElementById('notif-status');
   const log = (msg) => { statusEl.textContent = msg; console.log('[notif]', msg); };
@@ -1312,6 +1352,7 @@ async function enableNotifications(){
     const perm = await Notification.requestPermission();
     if(perm !== 'granted'){
       log('通知が許可されませんでした（結果: ' + perm + '）');
+      setNotifBtnState(false);
       return;
     }
     if(typeof firebase === 'undefined'){
@@ -1326,7 +1367,16 @@ async function enableNotifications(){
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({ action:'registerToken', token })
     });
-    log('通知を有効にしました');
+    // 頻度も一緒に設定しておく（未選択なら現在のセレクト値=デフォルト10分）
+    const minutes = document.getElementById('notif-interval-select').value;
+    await fetch(gasUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'setNotifyInterval', minutes })
+    });
+    localStorage.setItem(NOTIF_ENABLED_KEY, '1');
+    setNotifBtnState(true);
+    log('通知を有効にしました（' + minutes + '分おき）');
   }catch(e){
     console.error(e);
     log('診断エラー（' + (e && e.name) + '）: ' + (e && e.message ? e.message : e));
@@ -1334,6 +1384,24 @@ async function enableNotifications(){
 }
 document.getElementById('enable-notif-btn').addEventListener('click', enableNotifications);
 
+// 頻度セレクトを変更したら、既に通知が有効な場合のみサーバーへ即反映する
+document.getElementById('notif-interval-select').addEventListener('change', async (e)=>{
+  const statusEl = document.getElementById('notif-status');
+  if(!gasUrl){ return; }
+  const locallyEnabled = localStorage.getItem(NOTIF_ENABLED_KEY) === '1';
+  if(!locallyEnabled) return; // まだ有効化していないなら、有効化時にまとめて送るので何もしない
+  try{
+    await fetch(gasUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'setNotifyInterval', minutes: e.target.value })
+    });
+    statusEl.textContent = '通知頻度を' + e.target.value + '分おきに変更しました';
+  }catch(err){
+    statusEl.textContent = '頻度の変更に失敗しました';
+  }
+});
+  
 // ==== カード学習（Quizlet風フリップカード） ====
 let studySession = null;
 
@@ -1828,6 +1896,7 @@ async function init(){
   await load();
   await loadStudyLog();
   if(gasUrl) await syncPull();
+  await restoreNotifStatus();
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{ /* 通知未使用でも念のため試すが、失敗は無視 */ });
     // 既に開いているタブに通知が来た場合（Service Workerからのメッセージ）
