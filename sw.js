@@ -69,6 +69,18 @@ self.addEventListener('notificationclick', (event) => {
       );
     }
   } else {
-    event.waitUntil(clients.openWindow('./'));
+    // 通知本体タップ: その単語のカードをアプリ上で開けるよう、クエリ付きで開く
+    const url = './?review=' + encodeURIComponent(data.wordId || '') + '&dir=' + encodeURIComponent(data.direction || 'je');
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client) {
+            client.postMessage({ type: 'open-review', wordId: data.wordId, direction: data.direction });
+            return client.focus();
+          }
+        }
+        return clients.openWindow(url);
+      })
+    );
   }
 });
