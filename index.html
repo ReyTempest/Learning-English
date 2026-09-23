@@ -1945,8 +1945,11 @@ async function init(){
   const reviewId = params.get('review');
   if(reviewId){
     openSingleWordReview(reviewId, params.get('dir') || 'je');
-    // URLを綺麗に戻しておく（再読み込みで再度開かないように）
     history.replaceState(null, '', location.pathname);
+  }else{
+    // 通常起動時は、デフォルトタブ(カード学習)をそのまま表示する。
+    // 直前の syncPull() で最新化済みなので、ここでは再同期しない（二重同期防止）。
+    renderStudyEntry();
   }
 }
 init();
