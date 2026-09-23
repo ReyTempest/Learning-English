@@ -1528,23 +1528,23 @@ function renderStudyCard(){
     return;
   }
   if(studySession.idx >= studySession.queue.length){
+    if(studySession.fromNotification){
+      // 通知経由の1単語判定が終わったら、終了画面を挟まずそのまま通常の復習キューに合流する
+      flushSync();
+      renderStudyEntry();
+      return;
+    }
     flushSync();
-    const fromNotif = studySession.fromNotification;
     body.innerHTML = `
       <div class="session-done">
         <div class="stampmark">済</div>
-        ${fromNotif ? 'この単語の判定が完了しました。' : '今回のカード学習は終了です。お疲れさまでした。'}
+        今回のカード学習は終了です。お疲れさまでした。
       </div>
-      <div style="text-align:center;margin-top:14px;display:flex;gap:8px;flex-direction:column;">
-        ${fromNotif ? '<button class="spar-start" id="study-continue">続けて復習する</button>' : ''}
-        <button class="spar-start" id="study-restart" style="${fromNotif ? 'background:#fff;color:var(--ink);border:1px solid var(--ink);' : ''}">もう一度</button>
+      <div style="text-align:center;margin-top:14px;">
+        <button class="spar-start" id="study-restart">もう一度</button>
       </div>
     `;
     document.getElementById('study-restart').addEventListener('click', renderStudyEntry);
-    const continueBtn = document.getElementById('study-continue');
-    if(continueBtn){
-      continueBtn.addEventListener('click', renderStudyEntry);
-    }
     return;
   }
   const item = studySession.queue[studySession.idx];
