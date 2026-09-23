@@ -445,14 +445,16 @@ button:disabled:active{
     </div>
   </div>
 
+
+  
   <div class="tabs">
-    <button class="tab-btn active" data-tab="ledger">台帳</button>
+    <button class="tab-btn" data-tab="ledger">台帳</button>
     <button class="tab-btn" data-tab="spar">壁打ち</button>
-    <button class="tab-btn" data-tab="study">カード学習</button>
+    <button class="tab-btn active" data-tab="study">カード学習</button>
     <button class="tab-btn" data-tab="stats">統計</button>
   </div>
 
-  <div class="panel" id="panel-ledger">
+  <div class="panel hidden" id="panel-ledger">
     <div class="card-title">単語を追加 <span class="tag">INPUT</span></div>
     <div class="form-row top">
       <div class="field"><label>単語 / 表現</label><input id="in-word" placeholder="reluctant" spellcheck="true" lang="en"></div>
@@ -1047,7 +1049,7 @@ document.getElementById('reset-btn').addEventListener('click', async ()=>{
   renderLedger();
 });
 
-let currentTab = 'ledger';
+let currentTab = 'study';
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1889,12 +1891,7 @@ there are three train lines | 〜がある（誤: there there have）" style="he
   });
 }
 
-async function openSingleWordReview(wordId, direction){
-  // 通知のボタン操作(サーバー側)で更新された可能性があるSRS状態を、
-  // アプリのlocalStorageより先に取り込んでおく（食い違ったまま上書きしないように）
-  if(gasUrl){
-    await syncPull();
-  }
+function openSingleWordReview(wordId, direction){
   const w = words.find(x => x.id === wordId);
   if(!w) return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1906,6 +1903,11 @@ async function openSingleWordReview(wordId, direction){
   document.getElementById('panel-stats').classList.add('hidden');
   studySession = { queue: [{ wordId, dir: direction === 'ej' ? 'ej' : 'je' }], idx: 0, allCaughtUp: false, fromNotification: true };
   renderStudyCard();
+  // 同期は裏で行い、カード表示をブロックしない。
+  // 完了したら現在の判定に影響しないよう、まだ同じカードを見ている場合のみ静かに反映する。
+  if(gasUrl){
+    syncPull().catch(()=>{});
+  }
 }
   
 async function init(){
